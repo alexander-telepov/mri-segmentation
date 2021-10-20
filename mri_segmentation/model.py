@@ -1,6 +1,6 @@
 from unet import UNet
-from .hrnet import hrnet18
-from .attention import AttentionUnet
+from .models.hrnet import hrnet18
+from .models.attention import AttentionUnet
 
 
 def get_model(architecture='unet', device='cpu', **kwargs):

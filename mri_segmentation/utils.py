@@ -43,7 +43,7 @@ def prepare_aseg(targets):
     return targets
 
 
-def prepare_batch(batch, device, is_training=False):
+def prepare_batch(batch, device):
     """
     The function loading *nii.gz files, sending to the devise.
     For the LABEL it binarize the data.
@@ -53,8 +53,9 @@ def prepare_batch(batch, device, is_training=False):
     targets = torch.from_numpy(prepare_aseg(targets))
     targets = targets.to(device)
 
-    if is_training:
-        dist_maps = [batch[DIST_MAP + f'_{i}'][DATA] for i in range(6)]
+    dist_maps_keys = [key for key in batch.keys() if DIST_MAP in key]
+    if dist_maps_keys:
+        dist_maps = [batch[DIST_MAP + f'_{i}'][DATA] for i in range(len(dist_maps_keys))]
         dist_maps = torch.cat(dist_maps, dim=1).to(device)
     else:
         dist_maps = None

@@ -19,23 +19,23 @@ def get_train_data(data_dir, labels_dir, distmaps_dir=None, n_classes=1):
         columns.extend([f'distmap_{i}' for i in range(n_classes)])
 
     data_list = pd.DataFrame(columns=columns)
-    labels = pd.read_csv(labels_dir + 'unrestricted_hcp_freesurfer.csv')
+    labels = pd.read_csv(labels_dir / 'unrestricted_hcp_freesurfer.csv')
     data_list['Subject'] = labels['Subject']
 
     for i in tqdm(os.listdir(data_dir)):
         for j in range(len(data_list['Subject'])):
             if str(data_list['Subject'].iloc[j]) in i:
                 if 'norm' in i:  # copying path to the column norm
-                    data_list['norm'].iloc[j] = data_dir + '/' + i
+                    data_list['norm'].iloc[j] = str(data_dir / i)
                 elif 'aseg' in i:  # copying path to second column
-                    data_list['aseg'].iloc[j] = data_dir + '/' + i
+                    data_list['aseg'].iloc[j] = str(data_dir / i)
 
     if distmaps_dir:
         for i in tqdm(os.listdir(distmaps_dir)):
             for j in range(len(data_list['Subject'])):
                 if str(data_list['Subject'].iloc[j]) in i:
                     k = i[-8]
-                    data_list[f'distmap_{k}'].iloc[j] = distmaps_dir + '/' + i
+                    data_list[f'distmap_{k}'].iloc[j] = str(distmaps_dir / i)
 
     data_list.dropna(inplace=True)
     return data_list

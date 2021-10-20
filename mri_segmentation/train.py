@@ -47,8 +47,13 @@ def evaluate(model, evaluation_set, metrics, validation_batch_size=4, patch_size
 
         prediction = aggregator.get_output_tensor().unsqueeze(0)
 
-        for name, metric in metrics:
+        dice_scores = []
+        for name, metric in metrics.items():
             scores[name].append(metric(prediction, targets))
+            if 'dice' in name:
+                dice_scores.append(scores[name][-1])
+
+        scores['dice'].append(np.mean(dice_scores))
 
     return scores
 
@@ -57,7 +62,7 @@ def train(experiment, num_epochs, training_loader, validation_set, model, optimi
           scheduler=None, save_path='model.pth', scaler=None, **kwargs):
     scores = evaluate(model, validation_set, metrics, **kwargs)
 
-    for key in scores:
+    for key in scores.keys():
         scores[key] = np.mean(scores[key])
         experiment.log_metric(f"avg_val_{key}", scores[key], step=0, epoch=0)
 
@@ -72,7 +77,7 @@ def train(experiment, num_epochs, training_loader, validation_set, model, optimi
                   scaler=scaler, scheduler=scheduler)
 
         scores = evaluate(model, validation_set, metrics, **kwargs)
-        for key in scores:
+        for key in scores.keys():
             scores[key] = np.mean(scores[key])
             experiment.log_metric(f"avg_val_{key}", scores[key], step=epoch_idx, epoch=epoch_idx)
 
@@ -92,7 +97,7 @@ def run_epoch(experiment, epoch_idx, action, loader, model, optimizer, step_coun
     model.train(is_training)
 
     for batch_idx, batch in enumerate(tqdm(loader, leave=False)):
-        inputs, targets, distmaps = prepare_batch(batch, device, is_training=is_training)
+        inputs, targets, distmaps = prepare_batch(batch, device)
         if is_training and scaler:
             inputs, targets, = inputs.to(torch.float16), targets.to(torch.float16)
             if distmaps:
@@ -103,11 +108,11 @@ def run_epoch(experiment, epoch_idx, action, loader, model, optimizer, step_coun
             with autocast(is_training):
                 logits = model(inputs.float())
                 batch_losses = dict()
-                for name, criterion in criterions:
+                for name, criterion in criterions.items():
                     batch_losses[name] = criterion(logits, targets, distmaps)
 
             loss = 0.
-            for batch_loss in batch_losses:
+            for batch_loss in batch_losses.values():
                 loss += batch_loss
 
             if is_training:

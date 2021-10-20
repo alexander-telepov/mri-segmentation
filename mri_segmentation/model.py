@@ -3,7 +3,7 @@ from .hrnet import hrnet18
 from .attention import AttentionUnet
 
 
-def get_model(architecture, device, **kwargs):
+def get_model(architecture='unet', device='cpu', **kwargs):
     if architecture == 'hrnet18':
         model = hrnet18
     elif architecture == 'attention_unet':

@@ -1,0 +1,10 @@
+torch
+torchvision
+sklearn
+scipy
+torchio
+ninabel
+surface_distance
+unet
+yacs
+comet_ml

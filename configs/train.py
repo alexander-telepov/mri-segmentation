@@ -5,7 +5,7 @@ import numpy as np
 from pathlib import Path
 from functools import partial
 from surface_distance import metrics as _metrics
-from mri_segmentation.data import get_train_data, get_test_data, get_subjects, get_sets, get_loaders
+from mri_segmentation.data import get_data, get_test_data, get_subjects, get_sets, get_loaders
 from mri_segmentation.model import get_model
 from mri_segmentation.train import train, evaluate
 from mri_segmentation.loss import DiceLoss, BoundaryLoss
@@ -20,7 +20,7 @@ experiment = Experiment(
 data_dir = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test/anat-20210925T153621Z-001/')
 train_data_dir = data_dir / 'anat' / 'fs_segmentation'
 test_data_dir = data_dir / 'test'
-labels_dir = data_dir / 'anat'
+labels_path = data_dir / 'anat' / 'unrestricted_hcp_freesurfer.csv'
 distmaps_dir = None
 
 
@@ -53,9 +53,10 @@ iterator_kwargs = {
 n_classes = 6
 spacing = (1., 1., 1.)
 num_epochs = 10
+key = 'Subject'
 
-train_data_list = get_train_data(train_data_dir, labels_dir, distmaps_dir, n_classes=n_classes)
-test_data_list = get_test_data(test_data_dir)
+train_data_list = get_data(train_data_dir, labels_path, key, distmaps_dir=distmaps_dir, n_classes=n_classes)
+test_data_list = get_test_data(test_data_dir, key)
 train_subjects = get_subjects(train_data_list['norm'], train_data_list['aseg'])
 test_subjects = get_subjects(test_data_list['norm'], test_data_list['aseg'])
 train_set, val_set, test_set = get_sets(train_subjects, test_subjects, baseline_transforms=baseline_transforms)

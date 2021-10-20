@@ -13,18 +13,18 @@ from .utils import sset, one_hot, uniq, MRI, LABEL, DIST_MAP
 from .preprocessing import get_transforms
 
 
-def get_train_data(data_dir, labels_dir, distmaps_dir=None, n_classes=1):
-    columns = ['Subject', 'norm', 'aseg']
+def get_data(data_dir, labels_path, key, distmaps_dir=None, n_classes=1):
+    columns = [key, 'norm', 'aseg']
     if distmaps_dir:
         columns.extend([f'distmap_{i}' for i in range(n_classes)])
 
     data_list = pd.DataFrame(columns=columns)
-    labels = pd.read_csv(labels_dir / 'unrestricted_hcp_freesurfer.csv')
-    data_list['Subject'] = labels['Subject']
+    labels = pd.read_csv(labels_path)
+    data_list[key] = labels[key]
 
     for i in tqdm(os.listdir(data_dir)):
-        for j in range(len(data_list['Subject'])):
-            if str(data_list['Subject'].iloc[j]) in i:
+        for j in range(len(data_list[key])):
+            if str(data_list[key].iloc[j]) in i:
                 if 'norm' in i:  # copying path to the column norm
                     data_list['norm'].iloc[j] = str(data_dir / i)
                 elif 'aseg' in i:  # copying path to second column
@@ -32,8 +32,8 @@ def get_train_data(data_dir, labels_dir, distmaps_dir=None, n_classes=1):
 
     if distmaps_dir:
         for i in tqdm(os.listdir(distmaps_dir)):
-            for j in range(len(data_list['Subject'])):
-                if str(data_list['Subject'].iloc[j]) in i:
+            for j in range(len(data_list[key])):
+                if str(data_list[key].iloc[j]) in i:
                     k = i[-8]
                     data_list[f'distmap_{k}'].iloc[j] = str(distmaps_dir / i)
 
@@ -41,11 +41,11 @@ def get_train_data(data_dir, labels_dir, distmaps_dir=None, n_classes=1):
     return data_list
 
 
-def get_test_data(data_dir):
+def get_test_data(data_dir, key):
     test_subjects = [100206, 100307, 100408]
 
     testing_data_list = pd.DataFrame({
-        'Subject': test_subjects,
+        key: test_subjects,
         'norm': [f'{data_dir}/HCP_T1_fs6_{subject}_norm.nii.gz' for subject in test_subjects],
         'aseg': [f'{data_dir}/HCP_T1_fs6_{subject}_aparc+aseg.nii.gz' for subject in test_subjects]
     })

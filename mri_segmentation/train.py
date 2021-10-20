@@ -15,6 +15,47 @@ class Action(enum.Enum):
     VALIDATE = 'Validation'
 
 
+def predict(model, sample, validation_batch_size=4, patch_size=64, patch_overlap=0,
+            device='cuda', num_validation_workers=1):
+    sample = sample
+    grid_sampler = torchio.inference.GridSampler(
+        sample,
+        patch_size,
+        patch_overlap,
+    )
+    patch_loader = torch.utils.data.DataLoader(
+        grid_sampler, batch_size=validation_batch_size, num_workers=num_validation_workers)
+
+    aggregator = torchio.inference.GridAggregator(grid_sampler)
+
+    model.eval()
+
+    for patches_batch in patch_loader:
+        inputs = patches_batch[MRI][DATA].to(device)
+        locations = patches_batch['location']
+        logits = model(inputs.float())
+
+        aggregator.add_batch(logits, locations)
+
+    prediction = aggregator.get_output_tensor().unsqueeze(0)
+
+    return prediction
+
+
+@torch.no_grad()
+def make_predictions(model, evaluation_set, out_dir, validation_batch_size=4, patch_size=64, patch_overlap=0,
+                     device='cuda', num_validation_workers=1, **kwargs):
+
+    out_dir.mkdir(parents=True)
+    for i in tqdm(range(len(evaluation_set)), leave=False):
+        sample = evaluation_set[i]
+        prediction = predict(model, sample, validation_batch_size=validation_batch_size, patch_size=patch_size,
+                             patch_overlap=patch_overlap, device=device, num_validation_workers=num_validation_workers)
+
+        uid = sample[MRI]['path'].split('/')[-1][:-7]
+        np.save(out_dir / uid, prediction.detach().cpu().numpy())
+
+
 @torch.no_grad()
 def evaluate(model, evaluation_set, metrics, validation_batch_size=4, patch_size=64, patch_overlap=0, device='cuda',
              num_validation_workers=1, **kwargs):
@@ -26,26 +67,8 @@ def evaluate(model, evaluation_set, metrics, validation_batch_size=4, patch_size
             prepare_aseg(sample[LABEL][DATA])
         )
 
-        grid_sampler = torchio.inference.GridSampler(
-            sample,
-            patch_size,
-            patch_overlap,
-        )
-        patch_loader = torch.utils.data.DataLoader(
-            grid_sampler, batch_size=validation_batch_size, num_workers=num_validation_workers)
-
-        aggregator = torchio.inference.GridAggregator(grid_sampler)
-
-        model.eval()
-
-        for patches_batch in patch_loader:
-            inputs = patches_batch[MRI][DATA].to(device)
-            locations = patches_batch['location']
-            logits = model(inputs.float())
-
-            aggregator.add_batch(logits, locations)
-
-        prediction = aggregator.get_output_tensor().unsqueeze(0)
+        prediction = predict(model, sample, validation_batch_size=validation_batch_size, patch_size=patch_size,
+                             patch_overlap=patch_overlap, device=device, num_validation_workers=num_validation_workers)
 
         dice_scores = []
         for name, metric in metrics.items():

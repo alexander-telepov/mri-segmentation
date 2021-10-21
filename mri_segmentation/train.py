@@ -37,7 +37,7 @@ def predict(model, sample, validation_batch_size=4, patch_size=64, patch_overlap
 
         aggregator.add_batch(logits, locations)
 
-    prediction = aggregator.get_output_tensor().unsqueeze(0)
+    prediction = aggregator.get_output_tensor()
 
     return prediction
 
@@ -68,7 +68,8 @@ def evaluate(model, evaluation_set, metrics, validation_batch_size=4, patch_size
         )
 
         prediction = predict(model, sample, validation_batch_size=validation_batch_size, patch_size=patch_size,
-                             patch_overlap=patch_overlap, device=device, num_validation_workers=num_validation_workers)
+                             patch_overlap=patch_overlap, device=device,
+                             num_validation_workers=num_validation_workers).unsqueeze(0)
 
         dice_scores = []
         for name, metric in metrics.items():

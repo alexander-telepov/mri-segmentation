@@ -10,7 +10,6 @@ from tqdm import tqdm
 from functools import partial
 from operator import itemgetter
 from .utils import sset, one_hot, uniq, MRI, LABEL, DIST_MAP
-from .preprocessing import get_transforms
 
 
 def get_data(data_dir, labels_path, key, distmaps_dir=None, n_classes=1):
@@ -74,9 +73,9 @@ def get_subjects(inputs, targets, distmaps=None, n_classes=1):
     return subjects
 
 
-def get_sets(subjects, testing_subjects, baseline_transforms=True, train_size=0.9):
+def get_sets(subjects, testing_subjects, transforms=(None, None), train_size=0.9):
 
-    train_transform, validation_transform = get_transforms(baseline_transforms)
+    train_transform, validation_transform = transforms
 
     training_subjects, validation_subjects = train_test_split(
         subjects, train_size=train_size, shuffle=True, random_state=42

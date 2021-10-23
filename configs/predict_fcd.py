@@ -29,12 +29,10 @@ iterator_kwargs = {
 }
 
 n_classes = 6
-baseline_transforms = True
 key = 'patient'
 
 data_list = get_data(data_dir, labels_path, key, distmaps_dir=distmaps_dir, n_classes=n_classes)
 subjects = get_subjects(data_list['norm'], data_list['aseg'])
-# for some reason torchio doesn't support invertion of both transforms
 transform = tio.Compose([
     tio.ToCanonical(),
     tio.Resample((1., 1., 1.))
@@ -64,7 +62,7 @@ weights_stem = '6_classes_4_blocks_16_chanels_ce_dice_loss'
 models_dir = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test/models')
 model_path = models_dir / f'model_{weights_stem}.pth'
 
-predictions_path = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test/predictions')
+predictions_path = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test/predictions/fcd')
 
 model.load_state_dict(torch.load(model_path, map_location=device))
 make_predictions(model, data_set, predictions_path, **iterator_kwargs)

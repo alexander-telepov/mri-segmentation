@@ -9,6 +9,7 @@ from mri_segmentation.data import get_data, get_test_data, get_subjects, get_set
 from mri_segmentation.model import get_model
 from mri_segmentation.train import train, evaluate
 from mri_segmentation.loss import DiceLoss, BoundaryLoss
+from mri_segmentation.preprocessing import get_baseline_transforms
 
 
 experiment = Experiment(
@@ -25,7 +26,6 @@ distmaps_dir = None
 
 
 determesitic = True
-baseline_transforms = True
 
 if determesitic:
     torch.manual_seed(0)
@@ -55,11 +55,12 @@ spacing = (1., 1., 1.)
 num_epochs = 10
 key = 'Subject'
 
+transforms = get_baseline_transforms()
 train_data_list = get_data(train_data_dir, labels_path, key, distmaps_dir=distmaps_dir, n_classes=n_classes)
 test_data_list = get_test_data(test_data_dir, key)
 train_subjects = get_subjects(train_data_list['norm'], train_data_list['aseg'])
 test_subjects = get_subjects(test_data_list['norm'], test_data_list['aseg'])
-train_set, val_set, test_set = get_sets(train_subjects, test_subjects, baseline_transforms=baseline_transforms)
+train_set, val_set, test_set = get_sets(train_subjects, test_subjects, transforms=transforms)
 train_loader, val_loader = get_loaders(train_set, val_set, **iterator_kwargs)
 
 print('Training set:', len(train_set), 'subjects')

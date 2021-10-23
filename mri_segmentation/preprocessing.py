@@ -3,16 +3,17 @@ import torchio as tio
 from torchio import transforms
 
 
-def get_transforms(use_baseline=True):
-    if use_baseline:
-        train_transform = transforms.Compose([
-            transforms.Crop((49, 22, 49, 47, 19, 28)),
-            transforms.Pad(4)
-        ])
-        validation_transform = None
+def get_baseline_transforms():
+    train_transform = transforms.Compose([
+        transforms.Crop((49, 22, 49, 47, 19, 28)),
+        transforms.Pad(4)
+    ])
+    validation_transform = None
 
-        return train_transform, validation_transform
+    return train_transform, validation_transform
 
+
+def get_extra_transforms():
     LI_LANDMARKS = np.array([
         0.0,
         8.06305571158,

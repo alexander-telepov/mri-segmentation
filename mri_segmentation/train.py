@@ -77,7 +77,8 @@ def evaluate(model, evaluation_set, metrics, validation_batch_size=4, patch_size
             if 'dice' in name:
                 dice_scores.append(scores[name][-1])
 
-        scores['dice'].append(np.mean(dice_scores))
+        if dice_scores:
+            scores['dice'].append(np.mean(dice_scores))
 
     return scores
 
@@ -121,19 +122,20 @@ def run_epoch(experiment, epoch_idx, action, loader, model, optimizer, step_coun
     model.train(is_training)
 
     for batch_idx, batch in enumerate(tqdm(loader, leave=False)):
-        inputs, targets, distmaps = prepare_batch(batch, device)
+        inputs, targets = prepare_batch(batch, device)
         if is_training and scaler:
-            inputs, targets, = inputs.to(torch.float16), targets.to(torch.float16)
-            if distmaps:
-                distmaps = distmaps.to(torch.float16)
+            inputs = inputs.to(torch.float16)
+            for target_name in targets.keys():
+                if targets[target_name] is not None:
+                    targets[target_name] = targets[target_name].to(device)
 
         optimizer.zero_grad()
         with torch.set_grad_enabled(is_training):
             with autocast(is_training):
-                logits = model(inputs.float())
+                prediction = model(inputs.float())
                 batch_losses = dict()
                 for name, criterion in criterions.items():
-                    batch_losses[name] = criterion(logits, targets, distmaps)
+                    batch_losses[name] = criterion(inputs, prediction, targets)
 
             loss = 0.
             for batch_loss in batch_losses.values():

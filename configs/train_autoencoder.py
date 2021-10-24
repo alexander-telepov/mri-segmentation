@@ -1,14 +1,15 @@
 from comet_ml import Experiment
 import torch
+from torch.nn import CrossEntropyLoss as ce_loss
 from torch.cuda.amp import GradScaler
 import numpy as np
 from pathlib import Path
 from functools import partial
+import json
 
-from mri_segmentation.data import get_data, get_test_data, get_subjects, get_sets, get_loaders
+from mri_segmentation.data import get_data, get_subjects, get_sets, get_loaders
 from mri_segmentation.model import get_model
 from mri_segmentation.train import train, evaluate
-from mri_segmentation.loss import DiceLoss, BoundaryLoss
 from mri_segmentation.preprocessing import get_baseline_transforms
 from mri_segmentation.metrics import dice_score, hausdorff_score
 from mri_segmentation.utils import make_deterministic
@@ -20,10 +21,9 @@ experiment = Experiment(
     workspace="alexander-telepov",
 )
 
-data_dir = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test/anat-20210925T153621Z-001/')
-train_data_dir = data_dir / 'anat' / 'fs_segmentation'
-test_data_dir = data_dir / 'test'
-labels_path = data_dir / 'anat' / 'unrestricted_hcp_freesurfer.csv'
+root = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test')
+data_dir = root / 'predictions' / 'fcd'
+labels_path = root / 'targets_fcd_bank.csv'
 distmaps_dir = None
 
 
@@ -36,6 +36,7 @@ else:
 
 
 iterator_kwargs = {
+    # TODO: patch should be bigger
     'patch_size': 64,
     'samples_per_volume': 8,
     'max_queue_length': 240,
@@ -49,13 +50,23 @@ iterator_kwargs = {
 n_classes = 6
 spacing = (1., 1., 1.)
 num_epochs = 10
-key = 'Subject'
+key = 'patient'
+
+with open(root / 'autoencoder' / 'test.json', 'rt') as f:
+    test_names = json.load(f)
+
+
+with open(root / 'autoencoder' / 'train.json', 'rt') as f:
+    train_names = json.load(f)
+
 
 transforms = get_baseline_transforms()
-train_data_list = get_data(train_data_dir, labels_path, key, distmaps_dir=distmaps_dir, n_classes=n_classes)
-test_data_list = get_test_data(test_data_dir, key)
-train_subjects = get_subjects(train_data_list['norm'], train_data_list['aseg'])
-test_subjects = get_subjects(test_data_list['norm'], test_data_list['aseg'])
+train_data_list = get_data(data_dir, labels_path, key, distmaps_dir=distmaps_dir, n_classes=n_classes,
+                           names=train_names, dropna=False)['norm'].to_frame().dropna()
+test_data_list = get_data(data_dir, labels_path, key, distmaps_dir=distmaps_dir, n_classes=n_classes,
+                          names=test_names, dropna=False)['norm'].to_frame().dropna()
+train_subjects = get_subjects(train_data_list['norm'], load_predict=True)
+test_subjects = get_subjects(test_data_list['norm'], load_predict=True)
 train_set, val_set, test_set = get_sets(train_subjects, test_subjects, transforms=transforms)
 train_loader, val_loader = get_loaders(train_set, val_set, **iterator_kwargs)
 
@@ -69,13 +80,13 @@ model_kwargs = {
     'in_channels': 1,
     'out_classes': n_classes,
     'dimensions': 3,
-    'num_encoding_blocks': 4,
+    'num_encoding_blocks': 5,
     'out_channels_first_layer': 8,
     'normalization': 'batch',
     'upsampling_type': 'linear',
     'padding': True,
     'activation': 'PReLU',
-    'architecture': 'unet',
+    'architecture': 'autoencoder',
     'device': device
 }
 
@@ -83,19 +94,12 @@ model = get_model(**model_kwargs)
 optimizer = torch.optim.AdamW(model.parameters())
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=3, threshold=0.01)
 
-_dice_loss = DiceLoss(n_classes)
-_boundary_loss = BoundaryLoss(idc=list(range(n_classes)))
+
+def cross_entropy(inputs, logits, targets):
+    return ce_loss(logits, inputs)
 
 
-def dice_loss(inputs, logits, targets):
-    return _dice_loss(logits, targets['segm_mask'].squeeze(1), softmax=True)
-
-
-def boundary_loss(inputs, logits, targets, alpha=0.01):
-    return alpha * _boundary_loss(torch.softmax(logits, dim=1), targets['dist_maps'])
-
-
-criterions = {'dice': dice_loss}
+criterions = {'cross_entropy': cross_entropy}
 
 
 metrics = {
@@ -104,8 +108,8 @@ metrics = {
 }
 
 
-experiment.set_name("10 epochs, 4 encoding blocks, 8 out, 64 patch, baseline transforms")
-weights_stem = 'e10_bl4_o8_p64_t-base_m-unet'
+experiment.set_name("train autoencoder")
+weights_stem = 'autoencoder'
 models_dir = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test/models')
 model_path = models_dir / f'model_{weights_stem}.pth'
 

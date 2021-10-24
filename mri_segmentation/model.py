@@ -1,6 +1,7 @@
 from unet import UNet
 from .models.hrnet import hrnet18
 from .models.attention import AttentionUnet
+from .models.autoencoder import AutoEncoder
 
 
 def get_model(architecture='unet', device='cpu', **kwargs):
@@ -10,6 +11,8 @@ def get_model(architecture='unet', device='cpu', **kwargs):
         model = AttentionUnet
     elif architecture == 'unet':
         model = UNet
+    elif architecture == 'autoencoder':
+        model = AutoEncoder
     else:
         raise ValueError(f'Unknown architecture: {architecture}')
 

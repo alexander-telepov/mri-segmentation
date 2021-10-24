@@ -65,8 +65,8 @@ model_path = models_dir / f'model_{weights_stem}.pth'
 model.load_state_dict(torch.load(model_path, map_location=device))
 
 names_dict = {
-    'with_fcd': root / 'with_fcd_files.json',
-    'without_fcd': root / 'without_fcd_files.json'
+    'with_fcd': root / 'fcd_1_files.json',
+    'without_fcd': root / 'fcd_0_files.json'
 }
 
 for group, path2names in names_dict.items():
@@ -82,5 +82,5 @@ for group, path2names in names_dict.items():
 
     scores = evaluate(model, data_set, metrics, device=device, **iterator_kwargs)
 
-    with open(root / f'fcd_dset_metrics_group_{group}.json', 'wt') as f:
+    with open(root / f'fcd_dset_metrics_{group}.json', 'wt') as f:
         json.dump(scores, f)

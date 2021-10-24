@@ -12,7 +12,7 @@ from operator import itemgetter
 from .utils import sset, one_hot, uniq, MRI, LABEL, DIST_MAP
 
 
-def get_data(data_dir, labels_path, key, distmaps_dir=None, n_classes=1, names=None):
+def get_data(data_dir, labels_path, key, distmaps_dir=None, n_classes=1, names=None, dropna=True):
     columns = [key, 'norm', 'aseg']
     if distmaps_dir:
         columns.extend([f'distmap_{i}' for i in range(n_classes)])
@@ -37,7 +37,9 @@ def get_data(data_dir, labels_path, key, distmaps_dir=None, n_classes=1, names=N
                     k = i[-8]
                     data_list[f'distmap_{k}'].iloc[j] = str(distmaps_dir / i)
 
-    data_list.dropna(inplace=True)
+    if dropna:
+        data_list.dropna(inplace=True)
+
     return data_list
 
 
@@ -53,16 +55,22 @@ def get_test_data(data_dir, key):
     return testing_data_list
 
 
-def get_subjects(inputs, targets, distmaps=None, n_classes=1):
+def get_subjects(inputs, targets=None, distmaps=None, n_classes=1, load_predict=False):
     """
     The function creates list of torchio.subject from the list of files from customized dataloader.
     """
     subjects = []
-    for i, (image_path, label_path) in enumerate(zip(inputs, targets)):
+    for i, image_path in enumerate(inputs):
+        if load_predict:
+            image = torchio.Image(tensor=torch.softmax(torch.from_numpy(np.load(image_path)), dim=0), type=torchio.INTENSITY)
+        else:
+            image = torchio.Image(image_path, type=torchio.INTENSITY)
         subject_dict = {
-            MRI: torchio.Image(image_path, torchio.INTENSITY),
-            LABEL: torchio.Image(label_path, torchio.LABEL),
+            MRI: image
         }
+
+        if targets is not None:
+            subject_dict[LABEL] = torchio.Image(targets.iloc[i], torchio.LABEL)
 
         if distmaps is not None:
             for k in range(n_classes):

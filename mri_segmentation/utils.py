@@ -6,7 +6,7 @@ from torch import Tensor
 
 
 MRI = 'MRI'
-LABEL = 'LABEL'
+LABEL = 'SEGM_MASK'
 DIST_MAP = 'DIST_MAP'
 
 CHANNELS_DIMENSION = 6
@@ -49,9 +49,12 @@ def prepare_batch(batch, device):
     For the LABEL it binarize the data.
     """
     inputs = batch[MRI][DATA].to(device)
-    targets = batch[LABEL][DATA]
-    targets = torch.from_numpy(prepare_aseg(targets))
-    targets = targets.to(device)
+    if LABEL in batch.keys():
+        segm_mask = batch[LABEL][DATA]
+        segm_mask = torch.from_numpy(prepare_aseg(segm_mask))
+        segm_mask = segm_mask.to(device)
+    else:
+        segm_mask = None
 
     dist_maps_keys = [key for key in batch.keys() if DIST_MAP in key]
     if dist_maps_keys:
@@ -60,7 +63,12 @@ def prepare_batch(batch, device):
     else:
         dist_maps = None
 
-    return inputs, targets, dist_maps
+    targets = {
+        'segm_mask': segm_mask,
+        'dist_maps': dist_maps
+    }
+
+    return inputs, targets
 
 
 def simplex(t, axis=1):

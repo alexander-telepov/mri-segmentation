@@ -55,18 +55,14 @@ def get_test_data(data_dir, key):
     return testing_data_list
 
 
-def get_subjects(inputs, targets=None, distmaps=None, n_classes=1, load_predict=False):
+def get_subjects(inputs, targets=None, distmaps=None, n_classes=1, im_type=torchio.INTENSITY):
     """
     The function creates list of torchio.subject from the list of files from customized dataloader.
     """
     subjects = []
     for i, image_path in enumerate(inputs):
-        if load_predict:
-            image = torchio.Image(tensor=torch.softmax(torch.from_numpy(np.load(image_path)), dim=0), type=torchio.INTENSITY)
-        else:
-            image = torchio.Image(image_path, type=torchio.INTENSITY)
         subject_dict = {
-            MRI: image
+            MRI: torchio.Image(image_path, im_type)
         }
 
         if targets is not None:
@@ -74,7 +70,9 @@ def get_subjects(inputs, targets=None, distmaps=None, n_classes=1, load_predict=
 
         if distmaps is not None:
             for k in range(n_classes):
-                subject_dict[DIST_MAP + f'_{k}'] = torchio.Image(distmaps[k].iloc[i], torchio.LABEL)
+                # this may fail with transforms like bias-field torchio.LABEL also inappropriate because of prepare_aseg
+                # and one-hot transforms; need to move to other dataset and then merge with images
+                subject_dict[DIST_MAP + f'_{k}'] = torchio.Image(distmaps[k].iloc[i], torchio.INTENSITY)
 
         subject = torchio.Subject(subject_dict)
         subjects.append(subject)

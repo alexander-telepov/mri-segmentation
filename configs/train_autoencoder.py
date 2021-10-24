@@ -1,6 +1,7 @@
 from comet_ml import Experiment
 import torch
-from torch.nn import CrossEntropyLoss as ce_loss
+import torchio as tio
+from torch.nn import CrossEntropyLoss
 from torch.cuda.amp import GradScaler
 import numpy as np
 from pathlib import Path
@@ -12,7 +13,7 @@ from mri_segmentation.model import get_model
 from mri_segmentation.train import train, evaluate
 from mri_segmentation.preprocessing import get_baseline_transforms
 from mri_segmentation.metrics import dice_score, hausdorff_score
-from mri_segmentation.utils import make_deterministic
+from mri_segmentation.utils import make_deterministic, MRI
 
 
 experiment = Experiment(
@@ -22,7 +23,8 @@ experiment = Experiment(
 )
 
 root = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test')
-data_dir = root / 'predictions' / 'fcd'
+# TODO: to use predictions we need to store it in nifty format
+data_dir = root / 'fcd'
 labels_path = root / 'targets_fcd_bank.csv'
 distmaps_dir = None
 
@@ -37,7 +39,7 @@ else:
 
 iterator_kwargs = {
     # TODO: patch should be bigger
-    'patch_size': 64,
+    'patch_size': 96,
     'samples_per_volume': 8,
     'max_queue_length': 240,
     'training_batch_size': 16,
@@ -60,13 +62,13 @@ with open(root / 'autoencoder' / 'train.json', 'rt') as f:
     train_names = json.load(f)
 
 
-transforms = get_baseline_transforms()
+transforms = get_baseline_transforms(n_classes)
 train_data_list = get_data(data_dir, labels_path, key, distmaps_dir=distmaps_dir, n_classes=n_classes,
-                           names=train_names, dropna=False)['norm'].to_frame().dropna()
+                           names=train_names, dropna=False)['aseg'].to_frame().dropna()
 test_data_list = get_data(data_dir, labels_path, key, distmaps_dir=distmaps_dir, n_classes=n_classes,
-                          names=test_names, dropna=False)['norm'].to_frame().dropna()
-train_subjects = get_subjects(train_data_list['norm'], load_predict=True)
-test_subjects = get_subjects(test_data_list['norm'], load_predict=True)
+                          names=test_names, dropna=False)['aseg'].to_frame().dropna()
+train_subjects = get_subjects(train_data_list['aseg'], train_data_list['aseg'], im_type=tio.LABEL)
+test_subjects = get_subjects(test_data_list['aseg'], train_data_list['aseg'], im_type=tio.LABEL)
 train_set, val_set, test_set = get_sets(train_subjects, test_subjects, transforms=transforms)
 train_loader, val_loader = get_loaders(train_set, val_set, **iterator_kwargs)
 
@@ -77,7 +79,7 @@ print('Testing set:', len(test_set), 'subjects')
 torch.cuda.empty_cache()
 
 model_kwargs = {
-    'in_channels': 1,
+    'in_channels': 6,
     'out_classes': n_classes,
     'dimensions': 3,
     'num_encoding_blocks': 5,
@@ -95,8 +97,11 @@ optimizer = torch.optim.AdamW(model.parameters())
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=3, threshold=0.01)
 
 
-def cross_entropy(inputs, logits, targets):
-    return ce_loss(logits, inputs)
+ce_loss = CrossEntropyLoss()
+
+
+def cross_entropy(logits, targets):
+    return ce_loss(logits, targets['segm_mask'].sum(dim=1))
 
 
 criterions = {'cross_entropy': cross_entropy}

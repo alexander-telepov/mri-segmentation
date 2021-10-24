@@ -7,7 +7,7 @@ import numpy as np
 import enum
 from collections import defaultdict
 from torch.cuda.amp import autocast
-from .utils import prepare_batch, prepare_aseg, MRI, LABEL
+from .utils import prepare_batch, MRI, LABEL
 
 
 class Action(enum.Enum):
@@ -58,14 +58,12 @@ def make_predictions(model, evaluation_set, out_dir, validation_batch_size=4, pa
 
 @torch.no_grad()
 def evaluate(model, evaluation_set, metrics, validation_batch_size=4, patch_size=64, patch_overlap=0, device='cuda',
-             num_validation_workers=1, **kwargs):
+             num_validation_workers=1, label_key=LABEL, **kwargs):
 
     scores = defaultdict(list)
     for i in tqdm(range(len(evaluation_set)), leave=False):
         sample = evaluation_set[i]
-        targets = torch.from_numpy(
-            prepare_aseg(sample[LABEL][DATA])
-        ).to(device)
+        targets = torch.tensor(sample[label_key][DATA]).to(device).unsqueeze(0)
 
         prediction = predict(model, sample, validation_batch_size=validation_batch_size, patch_size=patch_size,
                              patch_overlap=patch_overlap, device=device,
@@ -125,9 +123,6 @@ def run_epoch(experiment, epoch_idx, action, loader, model, optimizer, step_coun
         inputs, targets = prepare_batch(batch, device)
         if is_training and scaler:
             inputs = inputs.to(torch.float16)
-            for target_name in targets.keys():
-                if targets[target_name] is not None:
-                    targets[target_name] = targets[target_name].to(device)
 
         optimizer.zero_grad()
         with torch.set_grad_enabled(is_training):
@@ -135,7 +130,7 @@ def run_epoch(experiment, epoch_idx, action, loader, model, optimizer, step_coun
                 prediction = model(inputs.float())
                 batch_losses = dict()
                 for name, criterion in criterions.items():
-                    batch_losses[name] = criterion(inputs, prediction, targets)
+                    batch_losses[name] = criterion(prediction, targets)
 
             loss = 0.
             for batch_loss in batch_losses.values():

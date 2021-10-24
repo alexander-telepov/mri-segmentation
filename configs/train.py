@@ -51,7 +51,7 @@ spacing = (1., 1., 1.)
 num_epochs = 10
 key = 'Subject'
 
-transforms = get_baseline_transforms()
+transforms = get_baseline_transforms(n_classes)
 train_data_list = get_data(train_data_dir, labels_path, key, distmaps_dir=distmaps_dir, n_classes=n_classes)
 test_data_list = get_test_data(test_data_dir, key)
 train_subjects = get_subjects(train_data_list['norm'], train_data_list['aseg'])
@@ -87,11 +87,11 @@ _dice_loss = DiceLoss(n_classes)
 _boundary_loss = BoundaryLoss(idc=list(range(n_classes)))
 
 
-def dice_loss(inputs, logits, targets):
+def dice_loss(logits, targets):
     return _dice_loss(logits, targets['segm_mask'].squeeze(1), softmax=True)
 
 
-def boundary_loss(inputs, logits, targets, alpha=0.01):
+def boundary_loss(logits, targets, alpha=0.01):
     return alpha * _boundary_loss(torch.softmax(logits, dim=1), targets['dist_maps'])
 
 

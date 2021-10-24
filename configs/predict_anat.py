@@ -42,7 +42,7 @@ test_subjects = get_subjects(test_data_list['norm'], test_data_list['aseg'])
 training_subjects, validation_subjects = train_test_split(
     train_subjects, train_size=0.9, shuffle=True, random_state=42
 )
-transform = get_inference_transform()
+transform = get_inference_transform(n_classes)
 transforms = (transform, transform)
 train_set, val_set, test_set = get_sets(train_subjects, test_subjects, transforms=transforms)
 

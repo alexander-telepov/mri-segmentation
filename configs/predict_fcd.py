@@ -35,7 +35,7 @@ key = 'patient'
 
 data_list = get_data(data_dir, labels_path, key, distmaps_dir=distmaps_dir, n_classes=n_classes)
 subjects = get_subjects(data_list['norm'], data_list['aseg'])
-transform = get_inference_transform()
+transform = get_inference_transform(n_classes)
 data_set = tio.SubjectsDataset(subjects, transform=transform)
 
 print('Data set:', len(data_set), 'subjects')

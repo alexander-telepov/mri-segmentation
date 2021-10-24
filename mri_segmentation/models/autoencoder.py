@@ -43,7 +43,7 @@ class EncodingBlock(nn.Module):
 
     def forward(self, x):
         out = self.backbone(x)
-        identity = F.avg_pool2d(x, 2)
+        identity = F.avg_pool3d(x, 2)
         out += self.shortcut(identity)
         return F.leaky_relu(out)
 
@@ -66,14 +66,14 @@ class AutoEncoder(nn.Module):
         in_ch, out_ch, n = in_channels, out_channels_first_layer, num_encoding_blocks
         self.features = nn.Sequential(
             nn.Conv3d(in_ch, out_ch, 3, 1, 1, bias=False),
-            nn.BatchNorm2d(out_ch),
+            nn.BatchNorm3d(out_ch),
             nn.LeakyReLU()
         )
         self.encoder = Encoder(out_ch, n)
         self.decoder = Decoder(out_ch * 2 ** n, n)
         self.head = nn.Sequential(
             nn.Conv3d(out_ch, in_ch, 3, 1, 1, bias=False),
-            nn.BatchNorm2d(out_ch),
+            nn.BatchNorm3d(in_ch),
             nn.LeakyReLU()
         )
 

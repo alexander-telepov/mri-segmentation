@@ -7,7 +7,6 @@ from .loss import DiceLoss
 def dice_score(prediction, targets, n_classes, channel=0):
     dice_loss = DiceLoss(n_classes)
     prediction = torch.softmax(prediction, dim=1)
-    targets = dice_loss.one_hot_encoder(targets)
 
     assert prediction.size() == targets.size(), \
         'predict {} & target {} shape do not match'.format(prediction.size(), targets.size())
@@ -18,7 +17,7 @@ def dice_score(prediction, targets, n_classes, channel=0):
 
 
 def hausdorff_score(prediction, targets, spacing, channel=0, level=95):
-    distances = _metrics.compute_surface_distances((targets.squeeze(0).cpu().numpy() == channel),
+    distances = _metrics.compute_surface_distances((targets.squeeze(0).cpu().numpy().sum(axis=0) == channel),
                                                    (np.argmax(prediction.squeeze(0).cpu().numpy(), axis=0) == channel),
                                                    spacing)
     return _metrics.compute_robust_hausdorff(distances, level)

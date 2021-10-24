@@ -40,7 +40,7 @@ def prepare_aseg(targets):
     targets = np.where(np.isin(targets, AMYGDL), 4, targets)
     targets = np.where(np.isin(targets, GM), 5, targets)
 
-    return targets
+    return torch.tensor(targets).to(torch.int64)
 
 
 def prepare_batch(batch, device):
@@ -51,7 +51,6 @@ def prepare_batch(batch, device):
     inputs = batch[MRI][DATA].to(device)
     if LABEL in batch.keys():
         segm_mask = batch[LABEL][DATA]
-        segm_mask = torch.from_numpy(prepare_aseg(segm_mask))
         segm_mask = segm_mask.to(device)
     else:
         segm_mask = None

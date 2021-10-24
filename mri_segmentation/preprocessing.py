@@ -1,27 +1,41 @@
 import numpy as np
 import torchio as tio
 from torchio import transforms
+from torch.nn.functional import one_hot as _one_hot
+from functools import partial
+from .utils import prepare_aseg
 
 
-def get_inference_transform():
+def one_hot(x, num_classes):
+    return _one_hot(x.squeeze(0), num_classes=num_classes).permute((3, 0, 1, 2))
+
+
+def get_inference_transform(n_classes):
     transform = tio.Compose([
+        tio.Lambda(prepare_aseg, types_to_apply=[tio.LABEL]),
+        tio.Lambda(partial(one_hot, num_classes=n_classes), types_to_apply=[tio.LABEL]),
         tio.ToCanonical(),
         tio.Resample((1., 1., 1.))
     ])
     return transform
 
 
-def get_baseline_transforms():
+def get_baseline_transforms(n_classes):
     train_transform = transforms.Compose([
+        tio.Lambda(prepare_aseg, types_to_apply=[tio.LABEL]),
+        tio.Lambda(partial(one_hot, num_classes=n_classes), types_to_apply=[tio.LABEL]),
         transforms.Crop((49, 22, 49, 47, 19, 28)),
         transforms.Pad(4)
     ])
-    validation_transform = None
+    validation_transform = transforms.Compose([
+        tio.Lambda(prepare_aseg, types_to_apply=[tio.LABEL]),
+        tio.Lambda(partial(one_hot, num_classes=n_classes), types_to_apply=[tio.LABEL])
+    ])
 
     return train_transform, validation_transform
 
 
-def get_extra_transforms():
+def get_extra_transforms(n_classes):
     LI_LANDMARKS = np.array([
         0.0,
         8.06305571158,
@@ -47,6 +61,8 @@ def get_extra_transforms():
     normalize = tio.ZNormalization(masking_method=get_foreground)
 
     training_transform = tio.Compose([
+        tio.Lambda(prepare_aseg, types_to_apply=[tio.LABEL]),
+        tio.Lambda(partial(one_hot, num_classes=n_classes), types_to_apply=[tio.LABEL]),
         to_canonical,
         resample,
         tio.RandomAnisotropy(p=0.25),
@@ -69,6 +85,8 @@ def get_extra_transforms():
     ])
 
     testing_transform = tio.Compose([
+        tio.Lambda(prepare_aseg, types_to_apply=[tio.LABEL]),
+        tio.Lambda(partial(one_hot, num_classes=n_classes), types_to_apply=[tio.LABEL]),
         to_canonical,
         resample,
         standartizatize,

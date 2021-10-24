@@ -4,12 +4,14 @@ from torch.cuda.amp import GradScaler
 import numpy as np
 from pathlib import Path
 from functools import partial
-from surface_distance import metrics as _metrics
+
 from mri_segmentation.data import get_data, get_test_data, get_subjects, get_sets, get_loaders
 from mri_segmentation.model import get_model
 from mri_segmentation.train import train, evaluate
 from mri_segmentation.loss import DiceLoss, BoundaryLoss
 from mri_segmentation.preprocessing import get_baseline_transforms
+from mri_segmentation.metrics import dice_score, hausdorff_score
+from mri_segmentation.utils import make_deterministic
 
 
 experiment = Experiment(
@@ -25,13 +27,7 @@ labels_path = data_dir / 'anat' / 'unrestricted_hcp_freesurfer.csv'
 distmaps_dir = None
 
 
-determesitic = True
-
-if determesitic:
-    torch.manual_seed(0)
-    np.random.seed(0)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+make_deterministic()
 
 if torch.cuda.is_available():
     device = torch.device("cuda:0")
@@ -102,28 +98,9 @@ def boundary_loss(logits, targets, distmaps, *args, alpha=0.01, **kwargs):
 criterions = {'dice': dice_loss}
 
 
-def dice_score(prediction, targets, channel=0):
-    prediction = torch.softmax(prediction, dim=1)
-    targets = _dice_loss.one_hot_encoder(targets)
-
-    assert prediction.size() == targets.size(), \
-        'predict {} & target {} shape do not match'.format(prediction.size(), targets.size())
-
-    dice = _dice_loss.dice_loss(prediction[:, channel], targets[:, channel])
-
-    return 1.0 - dice.item()
-
-
-def hausdorff_score(prediction, targets, spacing=spacing, channel=0, level=95):
-    distances = _metrics.compute_surface_distances((targets.squeeze(0).numpy() == channel),
-                                                   (np.argmax(prediction.squeeze(0).numpy(), axis=0) == channel),
-                                                   spacing)
-    return _metrics.compute_robust_hausdorff(distances, level)
-
-
 metrics = {
-    **{f'dice_{i}': partial(dice_score, channel=i) for i in range(n_classes)},
-    **{f'hausdorff_{i}': partial(hausdorff_score, channel=i) for i in range(n_classes)}
+    **{f'dice_{i}': partial(dice_score, n_classes=n_classes, channel=i) for i in range(n_classes)},
+    **{f'hausdorff_{i}': partial(hausdorff_score, spacing=spacing, channel=i) for i in range(n_classes)}
 }
 
 
@@ -134,7 +111,7 @@ model_path = models_dir / f'model_{weights_stem}.pth'
 
 scaler = GradScaler()
 train(experiment, num_epochs, train_loader, val_set, model, optimizer, criterions, metrics, scheduler=scheduler,
-      save_path=model_path, scaler=scaler)
+      save_path=model_path, scaler=scaler, device=device)
 
 
 model.load_state_dict(torch.load(model_path, map_location=device))

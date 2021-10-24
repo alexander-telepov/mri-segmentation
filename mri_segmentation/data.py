@@ -12,7 +12,7 @@ from operator import itemgetter
 from .utils import sset, one_hot, uniq, MRI, LABEL, DIST_MAP
 
 
-def get_data(data_dir, labels_path, key, distmaps_dir=None, n_classes=1):
+def get_data(data_dir, labels_path, key, distmaps_dir=None, n_classes=1, names=None):
     columns = [key, 'norm', 'aseg']
     if distmaps_dir:
         columns.extend([f'distmap_{i}' for i in range(n_classes)])
@@ -21,7 +21,8 @@ def get_data(data_dir, labels_path, key, distmaps_dir=None, n_classes=1):
     labels = pd.read_csv(labels_path)
     data_list[key] = labels[key]
 
-    for i in tqdm(os.listdir(data_dir)):
+    files = names if names is not None else os.listdir(data_dir)
+    for i in tqdm(files):
         for j in range(len(data_list[key])):
             if str(data_list[key].iloc[j]) in i:
                 if 'norm' in i:  # copying path to the column norm

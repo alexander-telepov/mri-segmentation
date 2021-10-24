@@ -39,7 +39,7 @@ def predict(model, sample, validation_batch_size=4, patch_size=64, patch_overlap
 
     prediction = aggregator.get_output_tensor()
 
-    return prediction
+    return prediction.to(device)
 
 
 @torch.no_grad()
@@ -65,7 +65,7 @@ def evaluate(model, evaluation_set, metrics, validation_batch_size=4, patch_size
         sample = evaluation_set[i]
         targets = torch.from_numpy(
             prepare_aseg(sample[LABEL][DATA])
-        )
+        ).to(device)
 
         prediction = predict(model, sample, validation_batch_size=validation_batch_size, patch_size=patch_size,
                              patch_overlap=patch_overlap, device=device,
@@ -83,8 +83,8 @@ def evaluate(model, evaluation_set, metrics, validation_batch_size=4, patch_size
 
 
 def train(experiment, num_epochs, training_loader, validation_set, model, optimizer, criterions, metrics,
-          scheduler=None, save_path='model.pth', scaler=None, **kwargs):
-    scores = evaluate(model, validation_set, metrics, **kwargs)
+          scheduler=None, save_path='model.pth', scaler=None, device='cuda', **kwargs):
+    scores = evaluate(model, validation_set, metrics, device=device, **kwargs)
 
     for key in scores.keys():
         scores[key] = np.mean(scores[key])
@@ -98,9 +98,9 @@ def train(experiment, num_epochs, training_loader, validation_set, model, optimi
     for epoch_idx in range(1, num_epochs + 1):
         print('\nStarting epoch', epoch_idx)
         run_epoch(experiment, epoch_idx, Action.TRAIN, training_loader, model, optimizer, step_counter, criterions,
-                  scaler=scaler, scheduler=scheduler)
+                  scaler=scaler, scheduler=scheduler, device=device)
 
-        scores = evaluate(model, validation_set, metrics, **kwargs)
+        scores = evaluate(model, validation_set, metrics, device=device, **kwargs)
         for key in scores.keys():
             scores[key] = np.mean(scores[key])
             experiment.log_metric(f"avg_val_{key}", scores[key], step=epoch_idx, epoch=epoch_idx)

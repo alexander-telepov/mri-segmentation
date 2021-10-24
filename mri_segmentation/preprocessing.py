@@ -3,6 +3,14 @@ import torchio as tio
 from torchio import transforms
 
 
+def get_inference_transform():
+    transform = tio.Compose([
+        tio.ToCanonical(),
+        tio.Resample((1., 1., 1.))
+    ])
+    return transform
+
+
 def get_baseline_transforms():
     train_transform = transforms.Compose([
         transforms.Crop((49, 22, 49, 47, 19, 28)),

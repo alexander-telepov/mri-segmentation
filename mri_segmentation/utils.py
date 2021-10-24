@@ -79,3 +79,10 @@ def sset(a, sub):
 
 def one_hot(t, axis=1):
     return simplex(t, axis) and sset(t, [0, 1])
+
+
+def make_deterministic():
+    torch.manual_seed(0)
+    np.random.seed(0)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False

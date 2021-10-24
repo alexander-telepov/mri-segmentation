@@ -3,8 +3,11 @@ import torchio as tio
 from pathlib import Path
 from mri_segmentation.data import get_data, get_subjects
 from mri_segmentation.model import get_model
-from mri_segmentation.train import make_predictions
+from mri_segmentation.train import evaluate
+from mri_segmentation.metrics import dice_score, hausdorff_score
 from mri_segmentation.preprocessing import get_inference_transform
+from functools import partial
+import json
 
 
 root = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test')
@@ -15,6 +18,7 @@ distmaps_dir = None
 
 if torch.cuda.is_available():
     device = torch.device("cuda:0")
+    torch.cuda.empty_cache()
 else:
     device = torch.device("cpu")
 
@@ -31,16 +35,14 @@ iterator_kwargs = {
 }
 
 n_classes = 6
+spacing = (1., 1., 1.)
 key = 'patient'
 
-data_list = get_data(data_dir, labels_path, key, distmaps_dir=distmaps_dir, n_classes=n_classes)
-subjects = get_subjects(data_list['norm'], data_list['aseg'])
-transform = get_inference_transform()
-data_set = tio.SubjectsDataset(subjects, transform=transform)
 
-print('Data set:', len(data_set), 'subjects')
-
-torch.cuda.empty_cache()
+metrics = {
+    **{f'dice_{i}': partial(dice_score, n_classes=n_classes, channel=i) for i in range(n_classes)},
+    **{f'hausdorff_{i}': partial(hausdorff_score, spacing=spacing, channel=i) for i in range(n_classes)}
+}
 
 model_kwargs = {
     'in_channels': 1,
@@ -62,5 +64,23 @@ models_dir = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test/models')
 model_path = models_dir / f'model_{weights_stem}.pth'
 model.load_state_dict(torch.load(model_path, map_location=device))
 
-predictions_path = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test/predictions/fcd')
-make_predictions(model, data_set, predictions_path, **iterator_kwargs)
+names_dict = {
+    'with_fcd': root / 'with_fcd_files.json',
+    'without_fcd': root / 'without_fcd_files.json'
+}
+
+for group, path2names in names_dict.items():
+    with open(path2names, 'rt') as f:
+        names = json.load(f)
+
+    data_list = get_data(data_dir, labels_path, key, distmaps_dir=distmaps_dir, n_classes=n_classes, names=names)
+    subjects = get_subjects(data_list['norm'], data_list['aseg'])
+    transform = get_inference_transform()
+    data_set = tio.SubjectsDataset(subjects, transform=transform)
+
+    print('Data set:', len(data_set), 'subjects')
+
+    scores = evaluate(model, data_set, metrics, device=device, **iterator_kwargs)
+
+    with open(root / f'fcd_dset_metrics_group_{group}.json', 'wt') as f:
+        json.dump(scores, f)

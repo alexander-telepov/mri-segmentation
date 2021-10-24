@@ -1,10 +1,10 @@
 import torch
-import torchio as tio
 from pathlib import Path
+from sklearn.model_selection import train_test_split
 from mri_segmentation.data import get_data, get_test_data, get_subjects, get_sets
 from mri_segmentation.model import get_model
 from mri_segmentation.train import make_predictions
-from sklearn.model_selection import train_test_split
+from mri_segmentation.preprocessing import get_inference_transform
 
 
 data_dir = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test/anat-20210925T153621Z-001/')
@@ -42,10 +42,7 @@ test_subjects = get_subjects(test_data_list['norm'], test_data_list['aseg'])
 training_subjects, validation_subjects = train_test_split(
     train_subjects, train_size=0.9, shuffle=True, random_state=42
 )
-transform = tio.Compose([
-    tio.ToCanonical(),
-    tio.Resample((1., 1., 1.))
-])
+transform = get_inference_transform()
 transforms = (transform, transform)
 train_set, val_set, test_set = get_sets(train_subjects, test_subjects, transforms=transforms)
 
@@ -75,8 +72,9 @@ models_dir = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test/models')
 model_path = models_dir / f'model_{weights_stem}.pth'
 model.load_state_dict(torch.load(model_path, map_location=device))
 
-predictions_path_train = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test/predictions/anat_train')
-make_predictions(model, train_set, predictions_path_train, **iterator_kwargs)
+# no sense to predict on train, because it may overfit
+# predictions_path_train = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test/predictions/anat_train')
+# make_predictions(model, train_set, predictions_path_train, **iterator_kwargs)
 
 predictions_path_val = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test/predictions/anat_val')
 make_predictions(model, val_set, predictions_path_val, **iterator_kwargs)

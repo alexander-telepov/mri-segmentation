@@ -5,7 +5,7 @@ from mri_segmentation.data import get_data, get_subjects
 from mri_segmentation.model import get_model
 from mri_segmentation.train import evaluate
 from mri_segmentation.metrics import dice_score, hausdorff_score
-from mri_segmentation.preprocessing import get_inference_transform
+from mri_segmentation.preprocessing import get_baseline_transforms
 from functools import partial
 import json
 
@@ -75,7 +75,7 @@ for group, path2names in names_dict.items():
 
     data_list = get_data(data_dir, labels_path, key, distmaps_dir=distmaps_dir, n_classes=n_classes, names=names)
     subjects = get_subjects(data_list['norm'], data_list['aseg'])
-    transform = get_inference_transform(n_classes)
+    _, transform = get_baseline_transforms(n_classes)
     data_set = tio.SubjectsDataset(subjects, transform=transform)
 
     print('Data set:', len(data_set), 'subjects')

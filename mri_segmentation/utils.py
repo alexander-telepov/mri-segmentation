@@ -33,6 +33,7 @@ def prepare_aseg(targets):
     """
     The function binarize the data with the LABEL list.
    """
+    targets = targets.to(torch.int64)
     targets = np.where(np.isin(targets, LABELS, invert=True), 0, targets)
     targets = np.where(np.isin(targets, VENTRCL), 1, targets)
     targets = np.where(np.isin(targets, BRN_STEM), 2, targets)

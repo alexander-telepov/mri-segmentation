@@ -5,6 +5,7 @@ from torchio import DATA
 import torch
 import numpy as np
 import enum
+import json
 from collections import defaultdict
 from torch.cuda.amp import autocast
 from .utils import prepare_batch, MRI, LABEL
@@ -54,6 +55,46 @@ def make_predictions(model, evaluation_set, out_dir, validation_batch_size=4, pa
 
         uid = sample[MRI]['path'].split('/')[-1][:-7]
         np.save(out_dir / uid, prediction.detach().cpu().numpy())
+
+
+@torch.no_grad()
+def compute_volumes(out_dir, model, evaluation_set, metrics, validation_batch_size=4, patch_size=64, patch_overlap=0,
+                    device='cuda', num_validation_workers=1, label_key=LABEL, **kwargs):
+
+    (out_dir / 'volumes_gt').mkdir(parents=True)
+    (out_dir / 'volumes_pred').mkdir(parents=True)
+    (out_dir / 'metrics').mkdir(parents=True)
+    for i in tqdm(range(len(evaluation_set)), leave=False):
+        sample = evaluation_set[i]
+        targets = torch.tensor(sample[label_key][DATA]).to(device).unsqueeze(0)
+
+        prediction = predict(model, sample, validation_batch_size=validation_batch_size, patch_size=patch_size,
+                             patch_overlap=patch_overlap, device=device,
+                             num_validation_workers=num_validation_workers).unsqueeze(0)
+
+        scores, dice_scores = dict(), list()
+        for name, metric in metrics.items():
+            scores[name] = metric(prediction, targets)
+            if 'dice' in name:
+                dice_scores.append(scores[name])
+
+        if dice_scores:
+            scores['dice'] = np.mean(dice_scores)
+
+        uid = sample[MRI]['path'].split('/')[-1][:-7]
+
+        with open(out_dir / 'metrics' / f'{uid}.json', 'wt') as f:
+            json.dump(scores, f)
+
+        _targets = targets.argmax(dim=1)
+        gt_volumes = [(_targets == i).sum().item() for i in range(6)]
+        with open(out_dir / 'volumes_gt' / f'{uid}.json', 'wt') as f:
+            json.dump(gt_volumes, f)
+
+        _prediction = prediction.argmax(dim=1)
+        pred_volumes = [(_prediction == i).sum().item() for i in range(6)]
+        with open(out_dir / 'volumes_pred' / f'{uid}.json', 'wt') as f:
+            json.dump(pred_volumes, f)
 
 
 @torch.no_grad()

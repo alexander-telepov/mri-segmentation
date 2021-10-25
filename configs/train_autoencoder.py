@@ -39,7 +39,7 @@ else:
 
 iterator_kwargs = {
     # TODO: patch should be bigger
-    'patch_size': 96,
+    'patch_size': 64,
     'samples_per_volume': 8,
     'max_queue_length': 240,
     'training_batch_size': 16,

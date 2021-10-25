@@ -4,7 +4,7 @@ from sklearn.model_selection import train_test_split
 from mri_segmentation.data import get_data, get_test_data, get_subjects, get_sets
 from mri_segmentation.model import get_model
 from mri_segmentation.train import make_predictions
-from mri_segmentation.preprocessing import get_inference_transform
+from mri_segmentation.preprocessing import get_baseline_transforms
 
 
 data_dir = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test/anat-20210925T153621Z-001/')
@@ -42,8 +42,7 @@ test_subjects = get_subjects(test_data_list['norm'], test_data_list['aseg'])
 training_subjects, validation_subjects = train_test_split(
     train_subjects, train_size=0.9, shuffle=True, random_state=42
 )
-transform = get_inference_transform(n_classes)
-transforms = (transform, transform)
+transforms = get_baseline_transforms(n_classes)
 train_set, val_set, test_set = get_sets(train_subjects, test_subjects, transforms=transforms)
 
 print('Training set:', len(train_set), 'subjects')

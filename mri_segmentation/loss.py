@@ -21,12 +21,12 @@ class DiceLoss(nn.Module):
         assert len(score.shape) == 4
         target = target.float()
         smooth = 1e-5
-        intersect = torch.sum(score * target)
+        intersect = torch.sum(score * target, dim=dim)
         y_sum = torch.sum(target * target, dim=dim)
         z_sum = torch.sum(score * score, dim=dim)
         loss = (2 * intersect + smooth) / (z_sum + y_sum + smooth)
-        loss = 1 - loss
-        return loss.mean()
+        loss = 1 - loss.mean()
+        return loss
 
     def forward(self, inputs, target, weight=None, softmax=False):
         if softmax:

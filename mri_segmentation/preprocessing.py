@@ -57,7 +57,7 @@ def get_extra_transforms(n_classes):
     to_canonical = tio.ToCanonical()
     resample = tio.Resample((1., 1., 1.))
     get_foreground = tio.ZNormalization.mean
-    standartizatize = tio.HistogramStandardization(landmarks_dict, masking_method=get_foreground)
+    standartize = tio.HistogramStandardization(landmarks_dict, masking_method=get_foreground)
     normalize = tio.ZNormalization(masking_method=get_foreground)
 
     training_transform = tio.Compose([
@@ -67,7 +67,7 @@ def get_extra_transforms(n_classes):
         resample,
         tio.RandomAnisotropy(p=0.25),
         tio.RandomGamma(p=0.2),
-        standartizatize,
+        standartize,
         normalize,
         tio.OneOf({
             tio.RandomBlur(p=0.5),
@@ -89,7 +89,7 @@ def get_extra_transforms(n_classes):
         tio.Lambda(partial(one_hot, num_classes=n_classes), types_to_apply=[tio.LABEL]),
         to_canonical,
         resample,
-        standartizatize,
+        standartize,
         normalize
     ])
 

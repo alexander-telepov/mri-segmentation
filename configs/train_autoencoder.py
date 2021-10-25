@@ -51,7 +51,7 @@ iterator_kwargs = {
 
 n_classes = 6
 spacing = (1., 1., 1.)
-num_epochs = 10
+num_epochs = 5
 key = 'patient'
 
 with open(root / 'autoencoder' / 'test.json', 'rt') as f:
@@ -69,7 +69,7 @@ test_data_list = get_data(data_dir, labels_path, key, distmaps_dir=distmaps_dir,
                           names=test_names, dropna=False)['aseg'].to_frame().dropna()
 train_subjects = get_subjects(train_data_list['aseg'], train_data_list['aseg'], im_type=tio.LABEL)
 test_subjects = get_subjects(test_data_list['aseg'], train_data_list['aseg'], im_type=tio.LABEL)
-train_set, val_set, test_set = get_sets(train_subjects, test_subjects, transforms=transforms)
+train_set, val_set, test_set = get_sets(train_subjects, test_subjects, transforms=transforms, train_size=0.95)
 train_loader, val_loader = get_loaders(train_set, val_set, **iterator_kwargs)
 
 print('Training set:', len(train_set), 'subjects')
@@ -101,7 +101,7 @@ ce_loss = CrossEntropyLoss()
 
 
 def cross_entropy(logits, targets):
-    return ce_loss(logits, targets['segm_mask'].sum(dim=1))
+    return ce_loss(logits, targets['segm_mask'].argmax(dim=1))
 
 
 criterions = {'cross_entropy': cross_entropy}

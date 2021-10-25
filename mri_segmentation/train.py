@@ -58,7 +58,7 @@ def make_predictions(model, evaluation_set, out_dir, validation_batch_size=4, pa
 
 
 @torch.no_grad()
-def compute_volumes(out_dir, model, evaluation_set, metrics, validation_batch_size=4, patch_size=64, patch_overlap=0,
+def compute_volumes_and_metrics(out_dir, model, evaluation_set, metrics, validation_batch_size=4, patch_size=64, patch_overlap=0,
                     device='cuda', num_validation_workers=1, label_key=LABEL, **kwargs):
 
     (out_dir / 'volumes_gt').mkdir(parents=True)

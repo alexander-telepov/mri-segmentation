@@ -18,9 +18,10 @@ def plot_central_cuts(img, title=""):
         img = img.get_fdata()
 
     fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(3 * 6, 6))
-    axes[0].imshow(img[img.shape[0] // 2, :, :], cmap='gray')
-    axes[1].imshow(img[:, img.shape[1] // 2, :], cmap='gray')
-    axes[2].imshow(img[:, :, img.shape[2] // 2], cmap='gray')
+    plt.title(title)
+    axes[0].imshow(img[img.shape[0] // 2, :, :])
+    axes[1].imshow(img[:, img.shape[1] // 2, :])
+    axes[2].imshow(img[:, :, img.shape[2] // 2])
 
     plt.show()
 

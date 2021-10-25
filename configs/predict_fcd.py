@@ -33,7 +33,9 @@ iterator_kwargs = {
 n_classes = 6
 key = 'patient'
 
-data_list = get_data(data_dir, labels_path, key, distmaps_dir=distmaps_dir, n_classes=n_classes)
+names = ['kulakov_input_G519_norm.nii.gz', 'kulakov_input_G519_aparc+aseg.nii.gz',
+         'Gueht_Test_p2_fspreproc_T051_norm.nii.gz', 'Gueht_Test_p2_fspreproc_T051_aparc+aseg.nii.gz']
+data_list = get_data(data_dir, labels_path, key, distmaps_dir=distmaps_dir, n_classes=n_classes, names=names)
 subjects = get_subjects(data_list['norm'], data_list['aseg'])
 _, transform = get_baseline_transforms(n_classes)
 data_set = tio.SubjectsDataset(subjects, transform=transform)

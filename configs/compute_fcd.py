@@ -4,7 +4,7 @@ from pathlib import Path
 from functools import partial
 from mri_segmentation.data import get_data, get_subjects
 from mri_segmentation.model import get_model
-from mri_segmentation.train import compute_volumes
+from mri_segmentation.train import compute_volumes_and_metrics
 from mri_segmentation.preprocessing import get_baseline_transforms
 from mri_segmentation.metrics import dice_score, hausdorff_score
 
@@ -71,4 +71,4 @@ model_path = models_dir / f'model_{weights_stem}.pth'
 model.load_state_dict(torch.load(model_path, map_location=device))
 
 predictions_path = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test/compute_fcd')
-compute_volumes(predictions_path, model, data_set, metrics, device=device, **iterator_kwargs)
+compute_volumes_and_metrics(predictions_path, model, data_set, metrics, device=device, **iterator_kwargs)

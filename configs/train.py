@@ -88,11 +88,11 @@ _boundary_loss = BoundaryLoss(idc=list(range(n_classes)))
 
 
 def dice_loss(logits, targets):
-    return _dice_loss(logits, targets['segm_mask'].squeeze(1), softmax=True)
+    return _dice_loss(logits, targets['segm_mask'], softmax=True)
 
 
 def boundary_loss(logits, targets, alpha=0.01):
-    return alpha * _boundary_loss(torch.softmax(logits, dim=1), targets['dist_maps'])
+    return alpha * _boundary_loss(torch.softmax(logits, dim=1), targets['dist_maps'].argmax(dim=1))
 
 
 criterions = {'dice': dice_loss}

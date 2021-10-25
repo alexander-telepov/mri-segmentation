@@ -1,16 +1,13 @@
 from comet_ml import Experiment
 import torch
 import torchio as tio
-from torch.nn import CrossEntropyLoss
-from torch.cuda.amp import GradScaler
-import numpy as np
 from pathlib import Path
 from functools import partial
 import json
 
 from mri_segmentation.data import get_data, get_subjects, get_sets, get_loaders
 from mri_segmentation.model import get_model
-from mri_segmentation.train import train, evaluate
+from mri_segmentation.train import make_predictions
 from mri_segmentation.preprocessing import get_baseline_transforms
 from mri_segmentation.metrics import dice_score, hausdorff_score
 from mri_segmentation.utils import make_deterministic, MRI
@@ -52,15 +49,15 @@ iterator_kwargs = {
 
 n_classes = 6
 spacing = (1., 1., 1.)
-num_epochs = 5
 key = 'patient'
 
+
 with open(root / 'autoencoder' / 'test.json', 'rt') as f:
-    test_names = json.load(f)
+    test_names = json.load(f)[:2]
 
 
 with open(root / 'autoencoder' / 'train.json', 'rt') as f:
-    train_names = json.load(f)
+    train_names = json.load(f)[:100]
 
 
 transforms = get_baseline_transforms(n_classes)
@@ -71,7 +68,7 @@ test_data_list = get_data(data_dir, labels_path, key, distmaps_dir=distmaps_dir,
 train_subjects = get_subjects(train_data_list['aseg'], train_data_list['aseg'], im_type=tio.LABEL)
 test_subjects = get_subjects(test_data_list['aseg'], train_data_list['aseg'], im_type=tio.LABEL)
 train_set, val_set, test_set = get_sets(train_subjects, test_subjects, transforms=transforms, train_size=0.95)
-train_loader, val_loader = get_loaders(train_set, val_set, **iterator_kwargs)
+
 
 print('Training set:', len(train_set), 'subjects')
 print('Validation set:', len(val_set), 'subjects')
@@ -94,18 +91,6 @@ model_kwargs = {
 }
 
 model = get_model(**model_kwargs)
-optimizer = torch.optim.AdamW(model.parameters())
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=3, threshold=0.01)
-
-
-_dice_loss = DiceLoss(n_classes)
-
-
-def dice_loss(logits, targets):
-    return _dice_loss(logits, targets['segm_mask'], softmax=True)
-
-
-criterions = {'dice': dice_loss}
 
 metrics = {
     **{f'dice_{i}': partial(dice_score, n_classes=n_classes, channel=i) for i in range(n_classes)},
@@ -113,21 +98,10 @@ metrics = {
 }
 
 
-experiment.set_name("train autoencoder with dice loss")
-weights_stem = 'autoencoder_dice'
+weights_stem = 'autoencoder'
 models_dir = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test/models')
 model_path = models_dir / f'model_{weights_stem}.pth'
 
-scaler = GradScaler()
-train(experiment, num_epochs, train_loader, val_set, model, optimizer, criterions, metrics, scheduler=scheduler,
-      save_path=model_path, scaler=scaler, device=device)
-
-
 model.load_state_dict(torch.load(model_path, map_location=device))
-test_scores = evaluate(model, test_set, metrics, **iterator_kwargs)
-print(test_scores)
-print(f"\nTesting mean score: DICE {np.mean(test_scores['dice']):0.3f}")
-
-experiment.log_metric("avg_test_dice", np.mean(test_scores['dice']))
-for i, subject in enumerate(test_subjects):
-    experiment.log_metric(f"test_subj_{subject}_dice", test_scores['dice'][i])
+predictions_path = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test/predictions/autoencoder')
+make_predictions(model, test_set, predictions_path, **iterator_kwargs)

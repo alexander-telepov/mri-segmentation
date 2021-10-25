@@ -70,8 +70,9 @@ def get_subjects(inputs, targets=None, distmaps=None, n_classes=1, im_type=torch
 
         if distmaps is not None:
             for k in range(n_classes):
-                # this may fail with transforms like bias-field torchio.LABEL also inappropriate because of prepare_aseg
-                # and one-hot transforms; need to move to other dataset and then merge with images
+                # this will fail with transforms like bias-field;
+                # torchio.LABEL also inappropriate because of interpolation and
+                # prepare_aseg, one-hot transforms; need to move to other dataset and then merge with images
                 subject_dict[DIST_MAP + f'_{k}'] = torchio.Image(distmaps[k].iloc[i], torchio.INTENSITY)
 
         subject = torchio.Subject(subject_dict)
@@ -133,10 +134,6 @@ def get_loaders(training_set, validation_set, max_queue_length=10, samples_per_v
 
 
 def class2one_hot(seg, K):
-    # Breaking change but otherwise can't deal with both 2d and 3d
-    # if len(seg.shape) == 3:  # Only w, h, d, used by the dataloader
-    #     return class2one_hot(seg.unsqueeze(dim=0), K)[0]
-
     assert sset(seg, list(range(K))), (uniq(seg), K)
 
     b, *img_shape = seg.shape  # type: Tuple[int, ...]

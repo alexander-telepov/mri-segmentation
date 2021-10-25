@@ -1,27 +1,18 @@
-from comet_ml import Experiment
 import torch
 import torchio as tio
 from pathlib import Path
 from functools import partial
 import json
 
-from mri_segmentation.data import get_data, get_subjects, get_sets, get_loaders
+from mri_segmentation.data import get_data, get_subjects, get_sets
 from mri_segmentation.model import get_model
 from mri_segmentation.train import make_predictions
 from mri_segmentation.preprocessing import get_baseline_transforms
 from mri_segmentation.metrics import dice_score, hausdorff_score
-from mri_segmentation.utils import make_deterministic, MRI
-from mri_segmentation.loss import DiceLoss
+from mri_segmentation.utils import make_deterministic
 
-
-experiment = Experiment(
-    api_key="HVUHHBi3VVGCPG3tcvpRsZUex",
-    project_name="neuro_project",
-    workspace="alexander-telepov",
-)
 
 root = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test')
-# TODO: to use predictions we need to store it in nifty format
 data_dir = root / 'fcd'
 labels_path = root / 'targets_fcd_bank.csv'
 distmaps_dir = None
@@ -36,7 +27,6 @@ else:
 
 
 iterator_kwargs = {
-    # TODO: patch should be bigger
     'patch_size': 64,
     'samples_per_volume': 8,
     'max_queue_length': 240,
@@ -98,10 +88,10 @@ metrics = {
 }
 
 
-weights_stem = 'autoencoder'
+weights_stem = 'autoencoder_dice'
 models_dir = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test/models')
 model_path = models_dir / f'model_{weights_stem}.pth'
 
 model.load_state_dict(torch.load(model_path, map_location=device))
-predictions_path = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test/predictions/autoencoder')
+predictions_path = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test/predictions/autoencoder_dice')
 make_predictions(model, test_set, predictions_path, **iterator_kwargs)

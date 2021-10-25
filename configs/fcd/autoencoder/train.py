@@ -24,7 +24,6 @@ experiment = Experiment(
 )
 
 root = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test')
-# TODO: to use predictions we need to store it in nifty format
 data_dir = root / 'fcd'
 labels_path = root / 'targets_fcd_bank.csv'
 distmaps_dir = None
@@ -39,7 +38,6 @@ else:
 
 
 iterator_kwargs = {
-    # TODO: patch should be bigger
     'patch_size': 64,
     'samples_per_volume': 8,
     'max_queue_length': 240,

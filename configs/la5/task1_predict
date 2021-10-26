@@ -1,14 +1,41 @@
+!pip install --quiet --upgrade comet_ml
+from comet_ml import Experiment
 import torch
+import torch.cuda
+!pip install torchio
+import torchio as tio
+import torchvision
+from torch.nn import CrossEntropyLoss
+from torch.cuda.amp import GradScaler
+import numpy as np
 from pathlib import Path
-from sklearn.model_selection import train_test_split
-from mri_segmentation.data import get_data, get_test_data, get_subjects, get_sets
-from mri_segmentation.model import get_model
-from mri_segmentation.train import make_predictions
-from mri_segmentation.preprocessing import get_baseline_transforms
+from functools import partial
+import json
+!pip install unet
+import unet
+import sys
+from google.colab import drive
+drive.mount('/content/drive')
+sys.path.insert(0, '/content/drive/My Drive/neuroimage_final_project/path')
+from comet_ml import Experiment
+import torch
+from torch.cuda.amp import GradScaler
+import numpy as np
+from pathlib import Path
+from functools import partial
 
-root = Path('C:/Users/Dastan/project/')
-train_data_dir = root / 'test_2' / 'train'
-test_data_dir = data_dir / 'test_2' / 'test'
+from mri_segmentation.data import get_data, get_test_data, get_subjects, get_sets, get_loaders
+from mri_segmentation.model import get_model
+from mri_segmentation.train import train, evaluate
+from mri_segmentation.loss import DiceLoss, BoundaryLoss
+from mri_segmentation.preprocessing import get_baseline_transforms
+from mri_segmentation.metrics import dice_score, hausdorff_score
+from mri_segmentation.utils import make_deterministic
+
+from mri_segmentation.train import make_predictions
+
+root = Path('/content/drive/My Drive/neuroimage_final_project')
+data_dir = root / 'la5'
 labels_path = root / 'LA5_actual_targets.csv'
 distmaps_dir = None
 
@@ -16,34 +43,29 @@ if torch.cuda.is_available():
     device = torch.device("cuda:0")
 else:
     device = torch.device("cpu")
-
+    
 iterator_kwargs = {
     'patch_size': 64,
     'samples_per_volume': 8,
     'max_queue_length': 240,
     'training_batch_size': 16,
     'validation_batch_size': 4,
-    'num_training_workers': 4,
-    'num_validation_workers': 4,
+    'num_training_workers': 1,
+    'num_validation_workers': 1,
     'patch_overlap': 0
 }
 
 n_classes = 6
 key = 'participant_id'
 
-train_data_list = get_data(train_data_dir, labels_path, key, distmaps_dir=distmaps_dir, n_classes=n_classes)
-test_data_list = get_test_data(test_data_dir, key)
-train_subjects = get_subjects(train_data_list['norm'], train_data_list['aseg'])
-test_subjects = get_subjects(test_data_list['norm'], test_data_list['aseg'])
-training_subjects, validation_subjects = train_test_split(
-    train_subjects, train_size=0.9, shuffle=True, random_state=42
-)
-transforms = get_baseline_transforms(n_classes)
-train_set, val_set, test_set = get_sets(train_subjects, test_subjects, transforms=transforms)
+names = ['LA5_freesurfer_sub-10159_aparc+aseg.nii.gz', 'LA5_freesurfer_sub-10159_norm.nii.gz',
+         'LA5_freesurfer_sub-60046_aparc+aseg.nii.gz', 'LA5_freesurfer_sub-60046_norm.nii.gz']
+data_list = get_data(data_dir, labels_path, key, distmaps_dir=distmaps_dir, n_classes=n_classes, names=names)
+subjects = get_subjects(data_list['norm'], data_list['aseg'])
+_, transform = get_baseline_transforms(n_classes)
+data_set = tio.SubjectsDataset(subjects, transform=transform)
 
-print('Training set:', len(train_set), 'subjects')
-print('Validation set:', len(val_set), 'subjects')
-print('Testing set:', len(test_set), 'subjects')
+print('Data set:', len(data_set), 'subjects')
 
 torch.cuda.empty_cache()
 
@@ -61,14 +83,12 @@ model_kwargs = {
     'device': device
 }
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 model = get_model(**model_kwargs)
 weights_stem = '6_classes_4_blocks_16_chanels_ce_dice_loss'
 models_dir = root / 'models'
 model_path = models_dir / f'model_{weights_stem}.pth'
 model.load_state_dict(torch.load(model_path, map_location=device))
 
-predictions_path_val = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test/predictions/anat_val')
-make_predictions(model, val_set, predictions_path_val, **iterator_kwargs)
-
-predictions_path_val = Path('/nmnt/x2-hdd/experiments/pulmonary_trunk/test/predictions/anat_test')
-make_predictions(model, test_set, predictions_path_val, **iterator_kwargs)
+predictions_path = root / 'predictions'
+make_predictions(model, data_set, predictions_path, **iterator_kwargs)

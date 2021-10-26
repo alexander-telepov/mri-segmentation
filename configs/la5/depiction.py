@@ -311,4 +311,3 @@ for i in range(0, len(testing_set)):
     res_pivot = res_pivot.append(temp_df, ignore_index =True)
 
 res_pivot
-

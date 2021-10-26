@@ -1,6 +1,8 @@
+#!pip install --quiet --upgrade comet_ml
 from comet_ml import Experiment
 import torch
 import torch.cuda
+#!pip install torchio
 import torchio as tio
 import torchvision
 from torch.nn import CrossEntropyLoss
@@ -9,22 +11,44 @@ import numpy as np
 from pathlib import Path
 from functools import partial
 import json
+
+from google.colab import drive
+drive.mount('/content/drive')
+
+import pathlib
+from pathlib import Path
+
+! echo $PYTHONPATH
+
+root = Path('/content/drive/My Drive/neuroimage_final_project')
+%set_env PYTHONPATH= '/content/drive/My Drive/neuroimage_final_project/path'
+
+import sys
+sys.path.insert(0, '/content/drive/My Drive/neuroimage_final_project/path')
+import mri_segmentation
+
+Requirement already satisfied: unet in /usr/local/lib/python3.7/dist-packages (0.7.7)
+Requirement already satisfied: torch in /usr/local/lib/python3.7/dist-packages (from unet) (1.9.0+cu111)
+Requirement already satisfied: typing-extensions in /usr/local/lib/python3.7/dist-packages (from torch->unet) (3.7.4.3)
+
 from mri_segmentation.data import get_data, get_subjects, get_sets, get_loaders
 from mri_segmentation.model import get_model
 from mri_segmentation.train import train, evaluate
 from mri_segmentation.preprocessing import get_baseline_transforms
 from mri_segmentation.metrics import dice_score, hausdorff_score
 from mri_segmentation.utils import make_deterministic, MRI
+
 experiment = Experiment(
     api_key="1oyzHrJhjofZ4uu1imMYi4y9Y",
     project_name="project-2",
     workspace="d45t4n",
 )
-#edit root path
-root = Path('C:/Users/Dastan/project/')
-data_dir = root / 'la5'
-labels_path = root / 'LA5_actual_targets.csv'
+
+data_dir = Path('/content/drive/My Drive/neuroimage_final_project/la5')
+labels_path = Path('/content/drive/My Drive/neuroimage_final_project/LA5_actual_targets.csv')
 distmaps_dir = None
+
+data_dir
 
 make_deterministic()
 
@@ -32,16 +56,15 @@ if torch.cuda.is_available():
     device = torch.device("cuda:0")
 else:
     device = torch.device("cpu")
-
+    
 iterator_kwargs = {
-    # TODO: patch should be bigger
-    'patch_size': 64,
-    'samples_per_volume': 8,
-    'max_queue_length': 240,
-    'training_batch_size': 16,
-    'validation_batch_size': 4,
-    'num_training_workers': 4,
-    'num_validation_workers': 4,
+    'patch_size': 16,
+    'samples_per_volume': 4,
+    'max_queue_length': 2,
+    'training_batch_size': 1,
+    'validation_batch_size': 1,
+    'num_training_workers': 2,
+    'num_validation_workers': 2,
     'patch_overlap': 0
 }
 
@@ -50,13 +73,13 @@ spacing = (1., 1., 1.)
 num_epochs = 10
 key = 'participant_id'
 
-with open(root / 'autoencoder' / 'test_encoder.json', 'rt') as f:
+with open('/content/drive/My Drive/neuroimage_final_project/test_encoder.json', 'rt') as f:
     test_names = json.load(f)
 
 
-with open(root / 'autoencoder' / 'train_encoder.json', 'rt') as f:
+with open('/content/drive/My Drive/neuroimage_final_project/train_encoder.json', 'rt') as f:
     train_names = json.load(f)
-
+    
 transforms = get_baseline_transforms(n_classes)
 train_data_list = get_data(data_dir, labels_path, key, distmaps_dir=distmaps_dir, n_classes=n_classes,
                            names=train_names, dropna=False)['aseg'].to_frame().dropna()
@@ -86,6 +109,10 @@ model_kwargs = {
     'architecture': 'autoencoder',
     'device': device
 }
+
+model = get_model(**model_kwargs)
+optimizer = torch.optim.AdamW(model.parameters())
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=3, threshold=0.01)
 
 ce_loss = CrossEntropyLoss()
 
@@ -120,4 +147,5 @@ print(f"\nTesting mean score: DICE {np.mean(test_scores['dice']):0.3f}")
 experiment.log_metric("avg_test_dice", np.mean(test_scores['dice']))
 for i, subject in enumerate(test_subjects):
     experiment.log_metric(f"test_subj_{subject}_dice", test_scores['dice'][i])
-
+    
+# Unfortunately it is impossible to run autoencoder pipeline without server power: changing parameters, trying to run it locally and in colab result in lack of RAM and restart of kernel.

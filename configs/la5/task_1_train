@@ -135,7 +135,7 @@ metrics = {
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 experiment.set_name("10 epochs, 4 encoding blocks, 8 out, 64 patch, baseline transforms")
-weights_stem = 'e10_bl4_o8_p64_t-base_m-unet'
+weights_stem = 'experiment'
 models_dir = Path('/content/drive/My Drive/neuroimage_final_project/models')
 model_path = models_dir / f'model_{weights_stem}.pth'
 

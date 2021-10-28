@@ -1,0 +1,10 @@
+Three attempts of training (train.ipynb): 
+
+https://www.comet.ml/d45t4n/project-2/f3c158a20707453d925eed754a01982d?experiment-tab=chart&showOutliers=true&smoothing=0&transformY=smoothing&xAxis=step
+https://www.comet.ml/d45t4n/project-2/901c4caf85934c46bff941c9356c58c8?experiment-tab=chart&showOutliers=true&smoothing=0&transformY=smoothing&xAxis=step
+https://www.comet.ml/d45t4n/project-2/bb6bdbce9be74a569bc61a0cf743d94b?experiment-tab=chart&showOutliers=true&smoothing=0&transformY=smoothing&xAxis=step
+
+
+Visualisation of segmentation (visual.ipynb):
+
+https://www.comet.ml/d45t4n/project-2/c7c249cb54ae44b59acb9faad13c2a8f?experiment-tab=chart&showOutliers=true&smoothing=0&transformY=smoothing&xAxis=step 
